@@ -395,7 +395,7 @@ async function poll(){
 }
 
 /* ============================ relay: phone anywhere <-> PC through an encrypted mailbox ============================ */
-const RELAY={keys:null,es:null,base:'https://ntfy.sh',statusT:0,timer:null,err:0};
+const RELAY={keys:null,es:null,base:'https://ntfy.sh',statusT:0,timer:null,err:0,ls:1};
 try{if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){const b=localStorage.getItem('mgh.ntfy');if(b)RELAY.base=b.replace(/\/$/,'')}}catch(e){}
 function isRelayHost(){return new URLSearchParams(location.search).has('relay')||location.hostname.endsWith('github.io')}
 function expand(c){
@@ -408,7 +408,7 @@ function expand(c){
   return S}
 async function relayIngest(m){
   try{if(m.event!=='message')return;const c=await MghRelay.open(RELAY.keys,m.message);if(!c||!c.ag)return;
-    if(c.hb&&c.hb<RELAY.statusT)return;RELAY.statusT=c.hb||Date.now();apply(expand(c));relayPill()}catch(e){}
+    if(c.hb&&c.hb<RELAY.statusT)return;RELAY.statusT=c.hb||Date.now();RELAY.ls=(c.ls===undefined?1:c.ls);apply(expand(c));relayPill()}catch(e){}
 }
 async function startRelay(){
   stopRelay();
@@ -428,8 +428,9 @@ function relayPill(){
   const bn=$('bridgeNote');
   if(!RELAY.statusT){setConn(RELAY.err>2?'err':'',RELAY.err>2?'لا اتصال بالصندوق':'بانتظار المدير…');return}
   const age=(Date.now()-RELAY.statusT)/60000,ok=age<13;
-  setConn(ok?'live':'err',ok?'المدير يسمعك (عبر الإنترنت)':'المدير لا يسمع منذ '+Math.round(age)+' د');
-  bn.textContent=ok?'':'لا نبضة من الجهاز منذ مدة: تأكد أن اللابتوب وجلسة المدير شغّالين.';bn.className='note '+(ok?'':'bad');
+  if(ok&&!RELAY.ls){setConn('err','الجهاز شغّال، لكن جلسة المدير نايمة');bn.textContent='أوامرك بتنحفظ وبتنفَّذ أول ما ترجع الجلسة.';bn.className='note bad';return}
+  setConn(ok?'live':'err',ok?'المدير يسمعك (عبر الإنترنت)':'لا نبضة من الجهاز منذ '+Math.round(age)+' د');
+  bn.textContent=ok?'':'الجهاز ما عاد يرسل نبضات: تأكد أن اللابتوب ونافذة الصندوق شغّالين.';bn.className='note '+(ok?'':'bad');
 }
 async function relaySend(text){
   if(!RELAY.keys)RELAY.keys=await MghRelay.derive(cfg.pin);
