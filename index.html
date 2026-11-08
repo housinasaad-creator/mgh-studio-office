@@ -91,8 +91,12 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
     <h2>أوامرك للفريق</h2>
     <textarea id="cmdText" placeholder="اكتب الأمر هنا… مثلاً: ابدأ فيديو اليوم عن الفرق بين Dart وJavaScript"></textarea>
     <div class="row"><button class="btn" id="send">إرسال للفريق</button><div class="chips" id="chips"></div></div>
+    <div class="note" id="bridgeNote"></div>
     <div class="note" id="cmdNote">اضغط على أي موظف في المكتب لتشاهد ماذا يفعل.</div>
+    <div id="pinSetup" style="display:none"><label>حدّد رمز الأوامر (4 إلى 12 حرفاً أو رقماً). يُحدَّد مرة واحدة من هذا الحاسوب</label><input id="pinNew" type="password" autocomplete="off" inputmode="numeric"><div class="row"><button class="btn ghost" id="pinNewSave">حفظ الرمز</button></div></div>
   </section>
+
+  <section class="card" id="repliesCard" style="display:none"><h2>ردود المدير</h2><div class="log" id="replies"></div></section>
 
   <section class="card"><h2>الحساب</h2>
     <div class="metrics"><div><b id="mFol">–</b><span>متابع</span></div><div><b id="mViews">–</b><span>مشاهدات ٧ أيام</span></div><div><b id="mPosts">–</b><span>فيديو منشور</span></div><div><b id="mChk">–</b><span>آخر فحص</span></div></div>
@@ -105,26 +109,30 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
 <div class="sheet" id="sheetAgent"><div class="box" id="boxAgent"></div></div>
 <div class="sheet" id="sheetSet"><div class="box">
   <h3>الإعدادات</h3>
-  <p>تُحفظ هذه البيانات على هاتفك فقط (داخل المتصفح) ولا تُرسل لأي جهة غير جيت هب.</p>
-  <label>مستودع الاستوديو (المالك/الاسم)</label><input id="setRepo" placeholder="housinasaad-creator/mgh-studio" autocapitalize="off" autocomplete="off">
-  <label>مفتاح جيت هب (fine-grained token: Actions=write, Contents=read)</label><input id="setTok" type="password" placeholder="github_pat_..." autocapitalize="off" autocomplete="off">
-  <div class="row"><button class="btn" id="setSave">حفظ واختبار</button><button class="btn ghost" id="setDemo">عرض تجريبي</button><button class="btn ghost" id="setClear">مسح البيانات</button></div>
-  <div class="note" id="setNote">بدون مفتاح تعمل الصفحة بوضع تجريبي (محاكاة) أو تعرض الحالة المحلية إذا فُتحت من حاسوبك.</div>
+  <p>رمز الأوامر هو الشيء الوحيد المطلوب: تحدّده مرة من الحاسوب ثم تكتبه هنا على هاتفك. يُحفظ على هاتفك فقط.</p>
+  <label>رمز الأوامر</label><input id="setPin" type="password" placeholder="••••" autocomplete="off" inputmode="numeric">
+  <div class="row"><button class="btn" id="pinSave">حفظ</button><button class="btn ghost" id="setDemo">عرض تجريبي</button><button class="btn ghost" id="setClear">مسح</button></div>
+  <div class="note" id="setNote">افتح هذه الصفحة من رابط الحاسوب (نفس شبكة الواي فاي) لتتصل بالمدير مباشرة.</div>
+  <details style="margin-top:12px"><summary class="note" style="cursor:pointer">متقدّم: تشغيل سحابي بمفاتيح (اختياري، غير مطلوب)</summary>
+    <label>مستودع الاستوديو (المالك/الاسم)</label><input id="setRepo" placeholder="housinasaad-creator/mgh-studio" autocapitalize="off" autocomplete="off">
+    <label>مفتاح جيت هب</label><input id="setTok" type="password" placeholder="github_pat_..." autocapitalize="off" autocomplete="off">
+    <div class="row"><button class="btn ghost" id="setSave">حفظ واختبار</button></div>
+  </details>
 </div></div>
 <div class="toast" id="toast"></div>
 
 <script>
 'use strict';
 /* ============================ data ============================ */
-const STAGES=[['idea','فكرة'],['script','سكربت'],['review','تدقيق'],['voice','صوت'],['motion','حركة'],['edit','مونتاج'],['ready','جاهز'],['published','منشور']];
+const STAGES=[['idea','فكرة'],['script','سكربت'],['review','تدقيق'],['motion','حركة'],['sound','موسيقى'],['edit','مونتاج'],['ready','جاهز'],['published','منشور']];
 const STATE_AR={idle:'متفرغ',working:'يعمل',done:'أنجز',blocked:'متوقف',meeting:'في الاجتماع'};
 const AG=[
  {id:'ceo',ar:'المدير',role:'ينسّق الفريق ويراجع كل مرحلة قبل الانتقال للتالية.',hair:'#2a2a3a',skin:'#dfaa84',shirt:'#1f3b73',style:'short',tie:true,mon:'#ff8a1f'},
  {id:'idea-scout',ar:'راصد الأفكار',role:'يختار فكرة اليوم ويتأكد من صحتها من التوثيق الرسمي.',hair:'#5a3a22',skin:'#d9a07a',shirt:'#2e8b6f',style:'curly',col:0,row:0,mon:'#6df0b4'},
- {id:'script-writer',ar:'كاتب السكربت',role:'يكتب النص العربي المشكول وخطة المشاهد.',hair:'#202020',skin:'#e6b896',shirt:'#8b5cf6',style:'short',glasses:true,col:1,row:0,mon:'#c4a6ff'},
- {id:'language-editor',ar:'مدقق اللغة',role:'يدقق اللغة والمعلومة ويجرّب الكود. هو بوابة الجودة.',hair:'#8a8a8a',skin:'#d9a07a',shirt:'#c0392b',style:'bald',glasses:true,col:2,row:0,mon:'#ff9a9a'},
- {id:'voice-producer',ar:'منتج الصوت',role:'يحوّل النص لصوت عربي ويضبط النطق والتوقيت.',hair:'#2a1a12',skin:'#c68b63',shirt:'#d98f1f',style:'long',headphones:true,col:3,row:0,mon:'#ffd27a'},
- {id:'motion-designer',ar:'مصمم الحركة',role:'يبني المشاهد المتحركة بالكود والأنيميشن.',hair:'#161616',skin:'#e0ac86',shirt:'#e84a8a',style:'cap',col:0,row:1,mon:'#ff9ccd'},
+ {id:'script-writer',ar:'كاتب السكربت',role:'يكتب جمل الفيديو بالعربية الصحيحة ويختار الكلمة المحرَّكة في كل جملة.',hair:'#202020',skin:'#e6b896',shirt:'#8b5cf6',style:'short',glasses:true,col:1,row:0,mon:'#c4a6ff'},
+ {id:'language-editor',ar:'مدقق اللغة',role:'يدقق الإملاء والمعلومة ويجرّب الكود ووقت القراءة. هو بوابة الجودة.',hair:'#8a8a8a',skin:'#d9a07a',shirt:'#c0392b',style:'bald',glasses:true,col:2,row:0,mon:'#ff9a9a'},
+ {id:'sound-designer',ar:'مصمم الصوت',role:'يصنع موسيقى هادئة ومؤثرات خفيفة تتزامن مع حركة الكلمات (اختياري).',hair:'#2a1a12',skin:'#c68b63',shirt:'#d98f1f',style:'long',headphones:true,col:0,row:1,mon:'#ffd27a'},
+ {id:'motion-designer',ar:'مصمم الحركة',role:'يحرّك الكلمات بمعناها بتأثيرات أقل من نصف ثانية ويبني مشاهد الكود.',hair:'#161616',skin:'#e0ac86',shirt:'#e84a8a',style:'cap',col:3,row:0,mon:'#ff9ccd'},
  {id:'video-editor',ar:'المونتير',role:'يرندر الفيديو ويفحص الإطارات والصوت.',hair:'#3b2416',skin:'#d9a07a',shirt:'#2f9cdb',style:'short',beard:true,col:1,row:1,mon:'#7fd0ff'},
  {id:'publisher',ar:'مجهّز النشر',role:'يجهّز الوصف والهاشتاغات والملفات. لا ينشر بنفسه.',hair:'#111',skin:'#e6b896',shirt:'#35a86b',style:'beanie',col:2,row:1,mon:'#8af0b4'},
  {id:'analyst',ar:'محلل الحساب',role:'يراقب الحساب ويجهّز أرقام اجتماع اليومين.',hair:'#4a3322',skin:'#d9a07a',shirt:'#6c7a99',style:'short',glasses:true,col:3,row:1,mon:'#9fb4ff'},
@@ -304,7 +312,7 @@ function place(){
 
 /* ============================ state ============================ */
 let S=null,MODE='demo',cfg={repo:'housinasaad-creator/mgh-studio',token:''};
-try{cfg.repo=localStorage.getItem('mgh.repo')||cfg.repo;cfg.token=localStorage.getItem('mgh.token')||''}catch(e){}
+cfg.pin='';try{cfg.repo=localStorage.getItem('mgh.repo')||cfg.repo;cfg.token=localStorage.getItem('mgh.token')||'';cfg.pin=localStorage.getItem('mgh.pin')||''}catch(e){}
 const $=id=>document.getElementById(id);
 function ago(iso){if(!iso)return'';const s=(Date.now()-new Date(iso).getTime())/1000;if(s<60)return'الآن';if(s<3600)return'منذ '+Math.round(s/60)+' د';if(s<86400)return'منذ '+Math.round(s/3600)+' س';return'منذ '+Math.round(s/86400)+' يوم'}
 function hhmm(iso){try{return new Date(iso).toLocaleTimeString('ar-EG-u-nu-latn',{hour:'2-digit',minute:'2-digit',hour12:false})}catch(e){return''}}
@@ -326,6 +334,7 @@ function apply(s){
   const m=s.metrics||{};
   $('mFol').textContent=m.followers??'–';$('mViews').textContent=m.views_7d??'–';$('mPosts').textContent=m.posts??'–';$('mChk').textContent=m.checked?ago(m.checked):'لم يُفحص';
   $('alerts').textContent=(m.alerts&&m.alerts.length)?'⚠ '+m.alerts.slice(-2).join(' · '):'';
+  const rp=(s.replies||[]).slice(-5).reverse();$('repliesCard').style.display=rp.length?'':'none';$('replies').innerHTML=rp.map(r=>`<div><time>${hhmm(r.t)}</time><span>${esc(r.text)}</span></div>`).join('');
   $('log').innerHTML=(s.log||[]).slice(-14).reverse().map(l=>`<div><time>${hhmm(l.t)}</time><em>${(byId[l.agent]||{ar:l.agent}).ar}</em><span>${esc(l.msg)}</span></div>`).join('')||'<div><span style="color:var(--mute)">لا أحداث بعد</span></div>';
 }
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -350,7 +359,18 @@ async function pollGitHub(){
   setConn('err','لا توجد حالة بعد');return false;
 }
 async function pollLocal(){
-  try{const r=await fetch('status.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return false;const js=await r.json();apply(js);setConn('live','محلي (الحاسوب شغّال)');return true}catch(e){return false}
+  try{
+    const r=await fetch('status.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return false;const js=await r.json();apply(js);
+    let alive=false;try{const b=await (await fetch('bridge.json?'+Date.now(),{cache:'no-store'})).json();alive=(Date.now()/1000-b.t)<20}catch(e){}
+    setConn(alive?'live':'err',alive?'المدير يسمعك':'المدير لا يسمع الآن');
+    const bn=$('bridgeNote');bn.textContent=alive?'':'الجلسة التي يعمل فيها المدير غير موصولة بالصفحة حالياً: الأوامر ستنتظر ولن ينفّذها أحد قبل أن يشغّلها حسين.';bn.className='note '+(alive?'':'bad');
+    return true}catch(e){return false}
+}
+async function pinCheck(){
+  try{const st=await (await fetch('/api/state',{cache:'no-store'})).json();
+    const need=!st.pin_set;$('pinSetup').style.display=(need&&st.local)?'':'none';
+    if(need&&!st.local){note('لم يُحدَّد رمز الأوامر بعد: افتح هذه الصفحة من الحاسوب (localhost) وحدّده مرة واحدة.','bad')}
+    return st}catch(e){return null}
 }
 let pollTimer=null;
 async function poll(){
@@ -371,8 +391,17 @@ async function sendCommand(){
   const text=$('cmdText').value.trim();if(!text){note('اكتب الأمر أولاً.','bad');return}
   const btn=$('send');btn.disabled=true;
   try{
+    if(MODE==='local'){
+      if(!cfg.pin){note('اكتب رمز الأوامر من ⚙ أولاً.','bad');openSheet('sheetSet');return}
+      const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:cfg.pin,text})});
+      if(r.ok){note('وصل الأمر للمدير. سيرد هنا خلال لحظات.','ok');$('cmdText').value='';toast('أُرسل الأمر ✓');setTimeout(pollLocal,2500)}
+      else if(r.status===401){note('الرمز غير صحيح.','bad');openSheet('sheetSet')}
+      else if(r.status===429){note('محاولات كثيرة: انتظر قليلاً.','bad')}
+      else if(r.status===503){note('لم يُحدَّد رمز الأوامر بعد: حدّده من الحاسوب.','bad')}
+      else note('تعذّر الإرسال (رمز '+r.status+').','bad');
+      return}
     if(MODE!=='github'){
-      note('الوضع الحالي تجريبي أو محلي: الأمر لم يُرسل لأي فريق. أدخل مفتاح جيت هب من ⚙ ليصل الأمر للفريق السحابي.','bad');
+      note('الوضع الحالي تجريبي: الأمر لم يُرسل لأحد. افتح الصفحة من رابط الحاسوب لتتصل بالمدير.','bad');
       demoCommand(text);return}
     const stamp=new Date().toLocaleString('en-GB',{hour12:false});
     const body={ref:'main',inputs:{text:`[أمر من حسين عبر لوحة التحكم — ${stamp}] ${text}`}};
@@ -391,10 +420,10 @@ $('send').onclick=sendCommand;
 let demoT=null;
 const DEMO=[
  ['idea-scout','يبحث عن فكرة اليوم: الفرق بين Dart وJavaScript','idea',10],
- ['script-writer','يكتب السكربت والنص الصوتي المشكول','script',25],
- ['language-editor','يدقق اللغة ويجرّب الكود','review',40],
- ['voice-producer','يسجّل الصوت ويضبط النطق','voice',55],
- ['motion-designer','يبني المشاهد المتحركة','motion',72],
+ ['script-writer','يكتب الجمل ويختار الكلمة المحرَّكة في كل جملة','script',25],
+ ['language-editor','يدقق الإملاء ويجرّب الكود ووقت القراءة','review',40],
+ ['motion-designer','يحرّك الكلمات بمعناها ويبني مشاهد الكود','motion',60],
+ ['sound-designer','يضبط موسيقى هادئة بنبضات خفيفة','sound',74],
  ['video-editor','يركّب الفيديو ويفحص الإطارات','edit',88],
  ['publisher','يجهّز الوصف والهاشتاغات','ready',96],
  ['analyst','يراجع أرقام الحساب لاجتماع اليومين','ready',100],
@@ -426,9 +455,11 @@ function demoCommand(text){if(!demoState)return;demoLog('ceo','أمر تجريب
 /* ============================ sheets / settings ============================ */
 function openSheet(id){$(id).classList.add('open')}function closeSheets(){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('open'))}
 document.querySelectorAll('.sheet').forEach(s=>s.addEventListener('pointerdown',e=>{if(e.target===s)closeSheets()}));
-$('gear').onclick=()=>{$('setRepo').value=cfg.repo;$('setTok').value=cfg.token;openSheet('sheetSet')};
+$('gear').onclick=()=>{$('setRepo').value=cfg.repo;$('setTok').value=cfg.token;$('setPin').value=cfg.pin;openSheet('sheetSet')};
+$('pinSave').onclick=()=>{cfg.pin=$('setPin').value.trim();try{localStorage.setItem('mgh.pin',cfg.pin)}catch(e){}$('setNote').textContent='تم حفظ الرمز على هذا الهاتف.';$('setNote').className='note ok';setTimeout(closeSheets,700)};
+$('pinNewSave').onclick=async()=>{const pin=$('pinNew').value.trim();const r=await fetch('/api/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});if(r.ok){cfg.pin=pin;try{localStorage.setItem('mgh.pin',pin)}catch(e){}$('pinSetup').style.display='none';note('تم تحديد الرمز. اكتبه على هاتفك من ⚙.','ok')}else{note('الرمز يجب أن يكون من 4 إلى 12 حرفاً.','bad')}};
 $('setDemo').onclick=()=>{closeSheets();startDemo()};
-$('setClear').onclick=()=>{try{localStorage.removeItem('mgh.token');localStorage.removeItem('mgh.repo')}catch(e){}cfg.token='';$('setTok').value='';$('setNote').textContent='تم المسح.';startDemo()};
+$('setClear').onclick=()=>{try{localStorage.removeItem('mgh.token');localStorage.removeItem('mgh.repo');localStorage.removeItem('mgh.pin')}catch(e){}cfg.token='';cfg.pin='';$('setTok').value='';$('setPin').value='';$('setNote').textContent='تم المسح.';startDemo()};
 $('setSave').onclick=async()=>{
   cfg.repo=$('setRepo').value.trim();cfg.token=$('setTok').value.trim();
   try{localStorage.setItem('mgh.repo',cfg.repo);localStorage.setItem('mgh.token',cfg.token)}catch(e){}
@@ -467,7 +498,7 @@ window.MGH={apply,AG,startDemo,get S(){return S},set(mode){MODE=mode}};
   const q=new URLSearchParams(location.search);
   if(q.has('demo')){startDemo()}
   else if(cfg.token){MODE='github';setConn('','…');poll()}
-  else if(location.protocol.startsWith('http')&&!location.hostname.endsWith('github.io')&&await pollLocal()){MODE='local';poll()}
+  else if(location.protocol.startsWith('http')&&!location.hostname.endsWith('github.io')&&await pollLocal()){MODE='local';pinCheck();poll()}
   else startDemo();
   requestAnimationFrame(loop);
 })();
