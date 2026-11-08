@@ -121,6 +121,7 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
 </div></div>
 <div class="toast" id="toast"></div>
 
+<script src="relay.js"></script>
 <script>
 'use strict';
 /* ============================ data ============================ */
@@ -390,7 +391,51 @@ async function poll(){
     if(MODE==='github')ok=await pollGitHub();
     else if(MODE==='local')ok=await pollLocal();
   }catch(e){setConn('err','لا اتصال');}
-  if(MODE!=='demo')pollTimer=setTimeout(poll,document.hidden?30000:MODE==='github'?12000:3000);
+  if(MODE==='github'||MODE==='local')pollTimer=setTimeout(poll,document.hidden?30000:MODE==='github'?12000:3000);
+}
+
+/* ============================ relay: phone anywhere <-> PC through an encrypted mailbox ============================ */
+const RELAY={keys:null,es:null,base:'https://ntfy.sh',statusT:0,timer:null,err:0};
+try{if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){const b=localStorage.getItem('mgh.ntfy');if(b)RELAY.base=b.replace(/\/$/,'')}}catch(e){}
+function isRelayHost(){return new URLSearchParams(location.search).has('relay')||location.hostname.endsWith('github.io')}
+function expand(c){
+  const M={i:'idle',w:'working',d:'done',b:'blocked'};
+  const u=new Date(c.hb||Date.now()).toISOString();
+  const S={updated:u,mode:'live',today:{date:c.td[0],title:c.td[1],stage:c.td[2],progress:c.td[3],publish_time:c.td[4]},agents:{},
+    meeting:{next:c.mt[0],active:!!c.mt[1],topic:c.mt[2]},metrics:{followers:c.mx[0],views_7d:c.mx[1],posts:c.mx[2],checked:c.mx[3],alerts:c.mx[4]||[]},
+    log:(c.lg||[]).map(l=>({t:l[0],agent:l[1],msg:l[2]})),replies:(c.rp||[]).map(r=>({t:r[0],text:r[1]}))};
+  for(const k in c.ag)S.agents[k]={state:M[c.ag[k][0]]||'idle',task:c.ag[k][1],since:u};
+  return S}
+async function relayIngest(m){
+  try{if(m.event!=='message')return;const c=await MghRelay.open(RELAY.keys,m.message);if(!c||!c.ag)return;
+    if(c.hb&&c.hb<RELAY.statusT)return;RELAY.statusT=c.hb||Date.now();apply(expand(c));relayPill()}catch(e){}
+}
+async function startRelay(){
+  stopRelay();
+  if(!cfg.pin){setConn('err','اكتب الرمز من ⚙');openSheet('sheetSet');return}
+  setConn('','جارٍ تجهيز الاتصال المشفّر…');
+  RELAY.keys=await MghRelay.derive(cfg.pin);
+  try{const r=await fetch(`${RELAY.base}/${RELAY.keys.topicOut}/json?poll=1&since=latest`,{cache:'no-store'});
+    const txt=await r.text();for(const line of txt.split('\n')){if(line.trim())await relayIngest(JSON.parse(line))}}catch(e){}
+  const es=new EventSource(`${RELAY.base}/${RELAY.keys.topicOut}/sse?since=latest`);RELAY.es=es;
+  es.onopen=()=>{RELAY.err=0;relayPill()};
+  es.onmessage=ev=>{try{relayIngest(JSON.parse(ev.data))}catch(e){}};
+  es.onerror=()=>{RELAY.err++;relayPill()};
+  RELAY.timer=setInterval(relayPill,15000);relayPill();
+}
+function stopRelay(){if(RELAY.es){RELAY.es.close();RELAY.es=null}if(RELAY.timer){clearInterval(RELAY.timer);RELAY.timer=null}}
+function relayPill(){
+  const bn=$('bridgeNote');
+  if(!RELAY.statusT){setConn(RELAY.err>2?'err':'',RELAY.err>2?'لا اتصال بالصندوق':'بانتظار المدير…');return}
+  const age=(Date.now()-RELAY.statusT)/60000,ok=age<13;
+  setConn(ok?'live':'err',ok?'المدير يسمعك (عبر الإنترنت)':'المدير لا يسمع منذ '+Math.round(age)+' د');
+  bn.textContent=ok?'':'لا نبضة من الجهاز منذ مدة: تأكد أن اللابتوب وجلسة المدير شغّالين.';bn.className='note '+(ok?'':'bad');
+}
+async function relaySend(text){
+  if(!RELAY.keys)RELAY.keys=await MghRelay.derive(cfg.pin);
+  const msg=await MghRelay.seal(RELAY.keys,{t:Date.now(),n:MghRelay.hex(MghRelay.rnd(8)),text});
+  const r=await fetch(`${RELAY.base}/${RELAY.keys.topicIn}`,{method:'POST',headers:{'Content-Type':'text/plain'},body:msg});
+  return r.ok;
 }
 
 /* ============================ commands ============================ */
@@ -402,6 +447,12 @@ async function sendCommand(){
   const text=$('cmdText').value.trim();if(!text){note('اكتب الأمر أولاً.','bad');return}
   const btn=$('send');btn.disabled=true;
   try{
+    if(MODE==='relay'){
+      if(!cfg.pin){note('اكتب رمز الأوامر من ⚙ أولاً.','bad');openSheet('sheetSet');return}
+      const ok=await relaySend(text);
+      if(ok){note('وصل الأمر لصندوق الإنترنت. سيلتقطه المدير إذا كان اللابتوب وجلسته شغّالين، وسيرد هنا.','ok');$('cmdText').value='';toast('أُرسل الأمر ✓')}
+      else note('تعذّر الإرسال لصندوق الإنترنت. جرّب بعد قليل.','bad');
+      return}
     if(MODE==='local'){
       if(!cfg.pin){note('اكتب رمز الأوامر من ⚙ أولاً.','bad');openSheet('sheetSet');return}
       const r=await fetch('/api/command',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin:cfg.pin,text})});
@@ -467,7 +518,7 @@ function demoCommand(text){if(!demoState)return;demoLog('ceo','أمر تجريب
 function openSheet(id){$(id).classList.add('open')}function closeSheets(){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('open'))}
 document.querySelectorAll('.sheet').forEach(s=>s.addEventListener('pointerdown',e=>{if(e.target===s)closeSheets()}));
 $('gear').onclick=()=>{$('setRepo').value=cfg.repo;$('setTok').value=cfg.token;$('setPin').value=cfg.pin;openSheet('sheetSet')};
-$('pinSave').onclick=()=>{cfg.pin=$('setPin').value.trim();try{localStorage.setItem('mgh.pin',cfg.pin)}catch(e){}$('setNote').textContent='تم حفظ الرمز على هذا الهاتف.';$('setNote').className='note ok';setTimeout(()=>{closeSheets();if(MODE==='local')poll()},700)};
+$('pinSave').onclick=()=>{cfg.pin=$('setPin').value.trim();try{localStorage.setItem('mgh.pin',cfg.pin)}catch(e){}$('setNote').textContent='تم حفظ الرمز على هذا الهاتف.';$('setNote').className='note ok';setTimeout(()=>{closeSheets();if(isRelayHost()){clearTimeout(demoTimer);MODE='relay';startRelay()}else if(MODE==='local')poll()},700)};
 $('pinNewSave').onclick=async()=>{const pin=$('pinNew').value.trim();const r=await fetch('/api/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});if(r.ok){cfg.pin=pin;try{localStorage.setItem('mgh.pin',pin)}catch(e){}$('pinSetup').style.display='none';note('تم تحديد الرمز. اكتبه على هاتفك من ⚙.','ok')}else{note('الرمز يجب أن يكون من 8 إلى 24 حرفاً.','bad')}};
 $('setDemo').onclick=()=>{closeSheets();startDemo()};
 $('setClear').onclick=()=>{try{localStorage.removeItem('mgh.token');localStorage.removeItem('mgh.repo');localStorage.removeItem('mgh.pin')}catch(e){}cfg.token='';cfg.pin='';$('setTok').value='';$('setPin').value='';$('setNote').textContent='تم المسح.';startDemo()};
@@ -508,6 +559,7 @@ window.MGH={apply,AG,startDemo,get S(){return S},set(mode){MODE=mode}};
 (async function init(){
   const q=new URLSearchParams(location.search);
   if(q.has('demo')){startDemo()}
+  else if(isRelayHost()){if(cfg.pin){MODE='relay';startRelay()}else{startDemo();setTimeout(()=>{note('اكتب رمز الأوامر من ⚙ لتتصل بالمدير عبر الإنترنت.','bad');openSheet('sheetSet')},800)}}
   else if(cfg.token){MODE='github';setConn('','…');poll()}
   else if(location.protocol.startsWith('http')&&!location.hostname.endsWith('github.io')&&await pollLocal()){MODE='local';pinCheck();poll()}
   else startDemo();
