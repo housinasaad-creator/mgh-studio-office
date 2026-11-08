@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b1020">
-<title>مكتب MGH Code</title>
+<title>مكتب MJH Code</title>
 <link rel="stylesheet" href="fonts/local.css">
 <style>
 :root{--bg:#0b1020;--panel:#131b36;--panel2:#18224a;--line:#26335f;--ink:#e9eeff;--mute:#8f9cc6;--orange:#ff8a1f;--ok:#35d07f;--bad:#ff5a5f;--warn:#ffcf4a;color-scheme:dark}
@@ -68,8 +68,8 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
 <body>
 <div class="app">
   <header>
-    <div class="logo">MGH</div>
-    <h1>استوديو MGH Code<small>المكتب الحي · تحكّم من هنا</small></h1>
+    <div class="logo">MJH</div>
+    <h1>استوديو MJH Code<small>المكتب الحي · تحكّم من هنا</small></h1>
     <div class="sp"></div>
     <div class="pill" id="conn"><span class="dot"></span><span id="connTxt">…</span></div>
     <button class="ibtn" id="gear" aria-label="الإعدادات">⚙</button>
@@ -152,7 +152,7 @@ const cv=document.getElementById('cv'),ctx=cv.getContext('2d');cv.width=LW;cv.he
 const bg=document.createElement('canvas');bg.width=LW;bg.height=LH;const bx=bg.getContext('2d');
 const R=(c,x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(Math.round(x),Math.round(y),w,h)};
 function shade(hex,amt){const n=parseInt(hex.slice(1),16);let r=(n>>16)+amt,g=((n>>8)&255)+amt,b=(n&255)+amt;r=Math.max(0,Math.min(255,r));g=Math.max(0,Math.min(255,g));b=Math.max(0,Math.min(255,b));return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1)}
-const GLYPH={M:['101','111','111','101','101'],G:['011','100','101','101','011'],H:['101','101','111','101','101'],C:['011','100','100','100','011'],O:['111','101','101','101','111'],D:['110','101','101','101','110'],E:['111','100','110','100','111']};
+const GLYPH={M:['101','111','111','101','101'],G:['011','100','101','101','011'],H:['101','101','111','101','101'],C:['011','100','100','100','011'],O:['111','101','101','101','111'],J:['001','001','001','101','010'],D:['110','101','101','101','110'],E:['111','100','110','100','111']};
 function text3(c,s,x,y,col){for(const ch of s){const g=GLYPH[ch];if(g){g.forEach((row,j)=>[...row].forEach((b,i)=>{if(b==='1')R(c,x+i,y+j,1,1,col)}));}x+=4}}
 function plant(c,x,y){R(c,x,y+7,6,4,'#8a4b2a');R(c,x+1,y+11,4,1,'#6a3a20');[[2,0],[0,2],[4,2],[1,3],[3,3],[2,5]].forEach(([i,j])=>R(c,x+i,y+j,2,3,j>2?'#2a8a4a':'#37b564'))}
 function drawBG(){
@@ -161,7 +161,7 @@ function drawBG(){
   // back wall
   R(c,0,0,LW,22,'#1a2347');for(let x=0;x<LW;x+=16)R(c,x,0,1,22,'#16203f');R(c,0,22,LW,2,'#0d1330');
   for(const wx of [8,100]){R(c,wx,4,22,13,'#0d1330');const g=c.createLinearGradient(0,4,0,17);g.addColorStop(0,'#10204a');g.addColorStop(1,'#243a78');c.fillStyle=g;c.fillRect(wx+1,5,20,11,0);R(c,wx+1,5,20,11,'#16295e');for(let i=0;i<5;i++)R(c,wx+2+i*4,9+(i%2)*2,3,7-(i%2)*2,'#0c1636');R(c,wx+11,5,1,11,'#0d1330');R(c,wx+15,7,2,2,'#f2e6a8');}
-  text3(c,'MGH CODE',49,8,'#ff8a1f');R(c,48,14,35,1,'#7a3c0c');
+  text3(c,'MJH CODE',49,8,'#ff6a3d');R(c,48,14,35,1,'#7a3c0c');
   // CEO room
   R(c,0,24,LW,58,'#33264a');for(let y=24;y<82;y+=2)for(let x=((y/2)%2)*2;x<LW;x+=4)R(c,x,y,2,1,'#38294f');
   R(c,30,40,70,38,'#4b2f1f');R(c,32,42,66,34,'#6d4126');R(c,0,80,LW,4,'#2a1f3a');
