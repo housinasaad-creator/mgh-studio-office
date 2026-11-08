@@ -93,7 +93,7 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
     <div class="row"><button class="btn" id="send">إرسال للفريق</button><div class="chips" id="chips"></div></div>
     <div class="note" id="bridgeNote"></div>
     <div class="note" id="cmdNote">اضغط على أي موظف في المكتب لتشاهد ماذا يفعل.</div>
-    <div id="pinSetup" style="display:none"><label>حدّد رمز الأوامر (4 إلى 12 حرفاً أو رقماً). يُحدَّد مرة واحدة من هذا الحاسوب</label><input id="pinNew" type="password" autocomplete="off" inputmode="numeric"><div class="row"><button class="btn ghost" id="pinNewSave">حفظ الرمز</button></div></div>
+    <div id="pinSetup" style="display:none"><label>حدّد رمز الأوامر (من 8 إلى 24 حرفاً أو رقماً، يفضَّل أن يصعب تخمينه). يُحدَّد مرة واحدة من هذا الحاسوب</label><input id="pinNew" type="password" autocomplete="off" inputmode="numeric"><div class="row"><button class="btn ghost" id="pinNewSave">حفظ الرمز</button></div></div>
   </section>
 
   <section class="card" id="repliesCard" style="display:none"><h2>ردود المدير</h2><div class="log" id="replies"></div></section>
@@ -109,7 +109,7 @@ input{width:100%;background:#0d1431;border:1px solid var(--line);border-radius:1
 <div class="sheet" id="sheetAgent"><div class="box" id="boxAgent"></div></div>
 <div class="sheet" id="sheetSet"><div class="box">
   <h3>الإعدادات</h3>
-  <p>رمز الأوامر هو الشيء الوحيد المطلوب: تحدّده مرة من الحاسوب ثم تكتبه هنا على هاتفك. يُحفظ على هاتفك فقط.</p>
+  <p>رمز الأوامر هو الشيء الوحيد المطلوب: تحدّده مرة من الحاسوب ثم تكتبه هنا على هاتفك. يُحفظ على هاتفك فقط، ويحمي الأوامر وحالة الفريق.</p>
   <label>رمز الأوامر</label><input id="setPin" type="password" placeholder="••••" autocomplete="off" inputmode="numeric">
   <div class="row"><button class="btn" id="pinSave">حفظ</button><button class="btn ghost" id="setDemo">عرض تجريبي</button><button class="btn ghost" id="setClear">مسح</button></div>
   <div class="note" id="setNote">افتح هذه الصفحة من رابط الحاسوب (نفس شبكة الواي فاي) لتتصل بالمدير مباشرة.</div>
@@ -360,8 +360,19 @@ async function pollGitHub(){
 }
 async function pollLocal(){
   try{
-    const r=await fetch('status.json?'+Date.now(),{cache:'no-store'});if(!r.ok)return false;const js=await r.json();apply(js);
-    let alive=false;try{const b=await (await fetch('bridge.json?'+Date.now(),{cache:'no-store'})).json();alive=(Date.now()/1000-b.t)<20}catch(e){}
+    let st=null;try{st=await (await fetch('/api/state',{cache:'no-store'})).json()}catch(e){return false}
+    const headers={};
+    if(!st.local){
+      if(!cfg.pin){setConn('err','اكتب الرمز من ⚙');if(!window.__askedPin){window.__askedPin=true;openSheet('sheetSet')}return 'auth'}
+      headers['X-Pin']=cfg.pin;
+    }
+    const r=await fetch('status.json?'+Date.now(),{cache:'no-store',headers});
+    if(r.status===401){setConn('err','الرمز غير صحيح');return 'auth'}
+    if(r.status===403){setConn('err','حدّد الرمز من الحاسوب أولاً');return 'auth'}
+    if(r.status===429){setConn('err','مقفل مؤقتاً: محاولات كثيرة');return 'auth'}
+    if(!r.ok)return false;
+    const js=await r.json();apply(js);
+    let alive=false;try{const b=await (await fetch('bridge.json?'+Date.now(),{cache:'no-store',headers})).json();alive=(Date.now()/1000-b.t)<20}catch(e){}
     setConn(alive?'live':'err',alive?'المدير يسمعك':'المدير لا يسمع الآن');
     const bn=$('bridgeNote');bn.textContent=alive?'':'الجلسة التي يعمل فيها المدير غير موصولة بالصفحة حالياً: الأوامر ستنتظر ولن ينفّذها أحد قبل أن يشغّلها حسين.';bn.className='note '+(alive?'':'bad');
     return true}catch(e){return false}
@@ -456,8 +467,8 @@ function demoCommand(text){if(!demoState)return;demoLog('ceo','أمر تجريب
 function openSheet(id){$(id).classList.add('open')}function closeSheets(){document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('open'))}
 document.querySelectorAll('.sheet').forEach(s=>s.addEventListener('pointerdown',e=>{if(e.target===s)closeSheets()}));
 $('gear').onclick=()=>{$('setRepo').value=cfg.repo;$('setTok').value=cfg.token;$('setPin').value=cfg.pin;openSheet('sheetSet')};
-$('pinSave').onclick=()=>{cfg.pin=$('setPin').value.trim();try{localStorage.setItem('mgh.pin',cfg.pin)}catch(e){}$('setNote').textContent='تم حفظ الرمز على هذا الهاتف.';$('setNote').className='note ok';setTimeout(closeSheets,700)};
-$('pinNewSave').onclick=async()=>{const pin=$('pinNew').value.trim();const r=await fetch('/api/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});if(r.ok){cfg.pin=pin;try{localStorage.setItem('mgh.pin',pin)}catch(e){}$('pinSetup').style.display='none';note('تم تحديد الرمز. اكتبه على هاتفك من ⚙.','ok')}else{note('الرمز يجب أن يكون من 4 إلى 12 حرفاً.','bad')}};
+$('pinSave').onclick=()=>{cfg.pin=$('setPin').value.trim();try{localStorage.setItem('mgh.pin',cfg.pin)}catch(e){}$('setNote').textContent='تم حفظ الرمز على هذا الهاتف.';$('setNote').className='note ok';setTimeout(()=>{closeSheets();if(MODE==='local')poll()},700)};
+$('pinNewSave').onclick=async()=>{const pin=$('pinNew').value.trim();const r=await fetch('/api/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pin})});if(r.ok){cfg.pin=pin;try{localStorage.setItem('mgh.pin',pin)}catch(e){}$('pinSetup').style.display='none';note('تم تحديد الرمز. اكتبه على هاتفك من ⚙.','ok')}else{note('الرمز يجب أن يكون من 8 إلى 24 حرفاً.','bad')}};
 $('setDemo').onclick=()=>{closeSheets();startDemo()};
 $('setClear').onclick=()=>{try{localStorage.removeItem('mgh.token');localStorage.removeItem('mgh.repo');localStorage.removeItem('mgh.pin')}catch(e){}cfg.token='';cfg.pin='';$('setTok').value='';$('setPin').value='';$('setNote').textContent='تم المسح.';startDemo()};
 $('setSave').onclick=async()=>{
