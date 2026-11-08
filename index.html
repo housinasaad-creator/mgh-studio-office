@@ -467,7 +467,7 @@ window.MGH={apply,AG,startDemo,get S(){return S},set(mode){MODE=mode}};
   const q=new URLSearchParams(location.search);
   if(q.has('demo')){startDemo()}
   else if(cfg.token){MODE='github';setConn('','…');poll()}
-  else if(location.protocol.startsWith('http')&&await pollLocal()){MODE='local';poll()}
+  else if(location.protocol.startsWith('http')&&!location.hostname.endsWith('github.io')&&await pollLocal()){MODE='local';poll()}
   else startDemo();
   requestAnimationFrame(loop);
 })();
